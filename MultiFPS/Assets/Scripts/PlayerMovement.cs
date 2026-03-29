@@ -12,6 +12,7 @@ public class PlayerMovement : NetworkBehaviour
     public float speed = 6f;               // Yürüme hýzý
     public float mouseSensitivity = 200f;  // Fare hassasiyeti
     public float gravity = -9.81f;         // Yerçekimi kuvveti
+    public float jumpHeight = 1.5f;
 
     private float xRotation = 0f;          // Kameranýn dikey dönüþ açýsý
     private Vector3 velocity;              // Yerçekimi için düþüþ hýzý
@@ -79,7 +80,7 @@ public class PlayerMovement : NetworkBehaviour
             }
             else
             {
-                // Sadece Client isek, Server'dan bizim yerimize yazmasýný rica ediyoruz.
+                // Sadece Client isek, Server'dan b izim yerimize yazmasýný rica ediyoruz.
                 UpdatePitchServerRpc(xRotation);
             }
             lastSentPitch = xRotation;
@@ -98,6 +99,11 @@ public class PlayerMovement : NetworkBehaviour
         // WASD tuþlarýndan gelen veriler
         float x = Input.GetAxis("Horizontal");
         float z = Input.GetAxis("Vertical");
+
+        if (Input.GetButtonDown("Jump") && controller.isGrounded)
+        {
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        } 
 
         // Karakterin baktýðý yöne göre vektör oluþtur
         Vector3 move = transform.right * x + transform.forward * z;
