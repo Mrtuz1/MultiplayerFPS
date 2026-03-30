@@ -50,26 +50,45 @@ public class PlayerCombat : NetworkBehaviour
     [ServerRpc]
     private void ShootServerRpc()
     {
-        // Raycast'i (ýþýn gönderme iþlemini) Sunucuda (Server) yapýyoruz ki oyuncular hile yapamasýn (Hit Validation).
-        if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out RaycastHit hit, range))
-        {
-            if (hit.transform.TryGetComponent(out PlayerHealthManager playerWhoDamaged))
-            {
-                // Bir oyuncuyu vurduk!
-                playerWhoDamaged.TakeDamage(damage);
+        // RaycastAll: Iþýnýn çarptýðý BÜTÜN objeleri bir dizi (array) olarak alýr.
+        RaycastHit[] hits = Physics.RaycastAll(playerCamera.transform.position, playerCamera.transform.forward, range);
 
-                // Oyuncuyu vurduðumuzda duvar efekti çýkmasýn, ama diðerleri silah sesimizi duysun.
-                ShootClientRpc(false, Vector3.zero, Vector3.zero);
-            }
-            else
+        RaycastHit closestValidHit = new RaycastHit();
+        float closestDistance = Mathf.Infinity;
+        bool foundValidHit = false;
+
+        // Çarptýðýmýz bütün objeleri tek tek kontrol ediyoruz
+        foreach (RaycastHit hit in hits)
+        {
+            // Eðer çarptýðýmýz obje BÝZÝM karakterimizse (veya karakterin altýndaki bir parçaysa), bunu yok say ve sýradakine geç (continue).
+            // transform.root objenin en tepesindeki ana objeyi verir.
+            if (hit.transform.root == this.transform.root) continue;
+
+            // Eðer çarptýðýmýz þey biz deðilsek ve kameraya daha yakýnsa, bunu geçerli vuruþ olarak kaydet.
+            if (hit.distance < closestDistance)
             {
-                // Duvar, zemin gibi baþka bir objeye vurduk.
-                ShootClientRpc(true, hit.point, hit.normal);
+                closestDistance = hit.distance;
+                closestValidHit = hit;
+                foundValidHit = true;
             }
         }
-        else
+
+        // Eðer biz hariç geçerli bir þeye çarptýysak
+        if (foundValidHit)
         {
-            // Havaya sýktýk (Raycast hiçbir þeye çarpmadý). Yine de mermi sesi/ýþýðý diðerlerine gitmeli.
+            // Adam mý vurduk?
+            if (closestValidHit.transform.TryGetComponent(out PlayerHealthManager playerWhoDamaged))
+            {
+                playerWhoDamaged.TakeDamage(damage);
+                ShootClientRpc(false, Vector3.zero, Vector3.zero);
+            }
+            else // Duvar falan mý vurduk?
+            {
+                ShootClientRpc(true, closestValidHit.point, closestValidHit.normal);
+            }
+        }
+        else // Hiçbir þeye çarpmadýk (Havaya sýktýk)
+        {
             ShootClientRpc(false, Vector3.zero, Vector3.zero);
         }
     }
