@@ -5,15 +5,16 @@ using UnityEngine;
 public class PlayerCombat : NetworkBehaviour
 {
     [Header("Referanslar")]
-    public Transform gunBarrel; // Namlu ucu (ileride efektleri buradan patlatacaðýz)
-    public Camera playerCamera; // FPS kameramýz (ýþýn buradan çýkacak)
+    public Transform gunBarrel;
+    public Camera playerCamera;
     public GameObject muzzleEffect;
+    public GameObject impactEffect;
     public AudioClip gunAudio;
     private AudioSource playerAudioSource;
 
     [Header("Ayarlar")]
-    public int damage = 25; // Hasar miktarý
-    public float range = 100f; // Silahýn menzili
+    public int damage = 25;
+    public float range = 100f;
 
     private void Awake()
     {
@@ -31,29 +32,62 @@ public class PlayerCombat : NetworkBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
+            // Týkladýðýmýz an kendi ekranýmýzda anýnda efektleri oynatýyoruz ki lag hissi olmasýn.
+            PlayShootEffects();
+
+            // Server'a "Ben ateþ ettim, vurup vurmadýðýmý hesapla ve diðerlerine haber ver" diyoruz.
             ShootServerRpc();
         }
     }
+
+    // Ortak efekt kodunu tek bir yere topladýk ki tekrar tekrar ayný þeyi yazmayalým
+    private void PlayShootEffects()
+    {
+        Instantiate(muzzleEffect, gunBarrel.position, gunBarrel.rotation, gunBarrel);
+        playerAudioSource.PlayOneShot(gunAudio);
+    }
+
     [ServerRpc]
     private void ShootServerRpc()
     {
-        RaycastHit hit;
-        if(Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out hit, range)){
-
+        // Raycast'i (ýþýn gönderme iþlemini) Sunucuda (Server) yapýyoruz ki oyuncular hile yapamasýn (Hit Validation).
+        if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out RaycastHit hit, range))
+        {
             if (hit.transform.TryGetComponent(out PlayerHealthManager playerWhoDamaged))
             {
+                // Bir oyuncuyu vurduk!
                 playerWhoDamaged.TakeDamage(damage);
+
+                // Oyuncuyu vurduðumuzda duvar efekti çýkmasýn, ama diðerleri silah sesimizi duysun.
+                ShootClientRpc(false, Vector3.zero, Vector3.zero);
+            }
+            else
+            {
+                // Duvar, zemin gibi baþka bir objeye vurduk.
+                ShootClientRpc(true, hit.point, hit.normal);
             }
         }
-        ShootClientRpc();
+        else
+        {
+            // Havaya sýktýk (Raycast hiçbir þeye çarpmadý). Yine de mermi sesi/ýþýðý diðerlerine gitmeli.
+            ShootClientRpc(false, Vector3.zero, Vector3.zero);
+        }
     }
 
     [ClientRpc]
-    private void ShootClientRpc()
+    private void ShootClientRpc(bool hitWall, Vector3 hitPoint, Vector3 hitNormal)
     {
-        // BU KISIM BÜTÜN OYUNCULARDA (Sen dahil) ÇALIÞIR
-        Instantiate(muzzleEffect, gunBarrel.position, gunBarrel.rotation, gunBarrel);
+        // Eðer bu kodu çalýþtýran kiþi silahý SIKMAYAN biriyse (diðer oyunculardan biriyse) 
+        // alev ve ses efektini oynat. Sýkan kiþi zaten HandleShot'ta oynattý.
+        if (!IsOwner)
+        {
+            PlayShootEffects();
+        }
 
-        playerAudioSource.PlayOneShot(gunAudio);
+        // Mermi izini HERKES görecek (silahý sýkan dahil). O yüzden bu kýsmý if'in dýþýna aldýk.
+        if (hitWall)
+        {
+            Instantiate(impactEffect, hitPoint, Quaternion.LookRotation(hitNormal));
+        }
     }
 }

@@ -217,7 +217,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 103896115
+  GlobalObjectIdHash: 357062010
   InScenePlacedSourceGlobalObjectIdHash: 2220093617
   DeferredDespawnTick: 0
   Ownership: 1
@@ -374,6 +374,7 @@ MonoBehaviour:
   gunBarrel: {fileID: 2685317872642783748}
   playerCamera: {fileID: 5438338804992977332}
   muzzleEffect: {fileID: 100000, guid: 03a4a1935a9f4454c861dfa0aa6df562, type: 3}
+  impactEffect: {fileID: 100006, guid: 94a130fb17f1cae4388a8fe1d8bd3055, type: 3}
   gunAudio: {fileID: 8300000, guid: 2203773368e4340d98c114f55c2dd7fd, type: 3}
   damage: 25
   range: 100
@@ -388,7 +389,7 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 8300000, guid: 2203773368e4340d98c114f55c2dd7fd, type: 3}
+  m_Resource: {fileID: 0}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1

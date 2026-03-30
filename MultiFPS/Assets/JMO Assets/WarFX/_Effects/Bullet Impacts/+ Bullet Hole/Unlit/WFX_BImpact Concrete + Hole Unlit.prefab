@@ -9564,7 +9564,7 @@ GameObject:
   - component: {fileID: 400006}
   - component: {fileID: 19800006}
   - component: {fileID: 19900006}
-  - component: {fileID: 11400002}
+  - component: {fileID: 3019864452141544089}
   m_Layer: 0
   m_Name: WFX_BImpact Concrete + Hole Unlit
   m_TagString: Untagged
@@ -14302,7 +14302,7 @@ ParticleSystemRenderer:
   m_MeshWeighting1: 1
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
---- !u!114 &11400002
+--- !u!114 &3019864452141544089
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -14311,7 +14311,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 100006}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6fd2e8874f60266498a388d7229a1bac, type: 3}
+  m_Script: {fileID: 11500000, guid: 7838218b906de544da581ecb2ef4131a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: 
-  OnlyDeactivate: 0
+  m_EditorClassIdentifier: Assembly-CSharp::AutoDestruct
+  onlyDeactivate: 0
