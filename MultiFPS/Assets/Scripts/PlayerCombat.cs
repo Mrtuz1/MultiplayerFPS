@@ -7,11 +7,18 @@ public class PlayerCombat : NetworkBehaviour
     [Header("Referanslar")]
     public Transform gunBarrel; // Namlu ucu (ileride efektleri buradan patlatacaðýz)
     public Camera playerCamera; // FPS kameramýz (ýþýn buradan çýkacak)
+    public GameObject muzzleEffect;
+    public AudioClip gunAudio;
+    private AudioSource playerAudioSource;
 
     [Header("Ayarlar")]
     public int damage = 25; // Hasar miktarý
     public float range = 100f; // Silahýn menzili
 
+    private void Awake()
+    {
+        playerAudioSource = GetComponent<AudioSource>();
+    }
 
     private void Update()
     {
@@ -45,7 +52,8 @@ public class PlayerCombat : NetworkBehaviour
     private void ShootClientRpc()
     {
         // BU KISIM BÜTÜN OYUNCULARDA (Sen dahil) ÇALIÞIR
-        // Mermi sesi çalma, namlu alevi (muzzle flash) patlatma kodlarý buraya gelecek.
-        Debug.Log("[Client]: Pew pew! (Efektler çalýþtý)");
+        Instantiate(muzzleEffect, gunBarrel.position, gunBarrel.rotation, gunBarrel);
+
+        playerAudioSource.PlayOneShot(gunAudio);
     }
 }
