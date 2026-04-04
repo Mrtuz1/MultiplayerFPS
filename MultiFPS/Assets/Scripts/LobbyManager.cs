@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -51,7 +51,13 @@ public class LobbyManager : MonoBehaviour
         try
         {
             if (UnityServices.State != ServicesInitializationState.Initialized)
-                await UnityServices.InitializeAsync();
+            {
+                InitializationOptions options = new InitializationOptions();
+#if UNITY_EDITOR
+                options.SetProfile("Player_" + UnityEngine.Random.Range(10000, 99999));
+#endif
+                await UnityServices.InitializeAsync(options);
+            }
 
             if (!AuthenticationService.Instance.IsSignedIn)
             {
@@ -69,12 +75,13 @@ public class LobbyManager : MonoBehaviour
         }
     }
 
-    public async Task<bool> CreateLobbyAsync(string lobbyName, int maxPlayers, bool isPrivate, string password = "")
+    public async Task<bool> CreateLobbyAsync(string lobbyName, int maxPlayers, bool isPrivate, string password = "", string playerName = "")
     {
         try
         {
             var options = new CreateLobbyOptions
             {
+                Player = GetPlayerObj(playerName),
                 IsPrivate = isPrivate,
                 Data = new Dictionary<string, DataObject>
                 {
@@ -125,11 +132,12 @@ public class LobbyManager : MonoBehaviour
         }
     }
 
-    public async Task<bool> JoinLobbyByCodeAsync(string code, string password = "")
+    public async Task<bool> JoinLobbyByCodeAsync(string code, string password = "", string playerName = "")
     {
         try
         {
-            JoinedLobby = await LobbyService.Instance.JoinLobbyByCodeAsync(code.Trim().ToUpper());
+            var options = new JoinLobbyByCodeOptions { Player = GetPlayerObj(playerName) };
+            JoinedLobby = await LobbyService.Instance.JoinLobbyByCodeAsync(code.Trim().ToUpper(), options);
             if (!ValidatePassword(password)) return false;
             _pollCoroutine = StartCoroutine(LobbyPollCoroutine());
             OnLobbyJoined?.Invoke(JoinedLobby);
@@ -146,11 +154,12 @@ public class LobbyManager : MonoBehaviour
         }
     }
 
-    public async Task<bool> JoinPublicLobbyAsync(Lobby lobby, string password = "")
+    public async Task<bool> JoinPublicLobbyAsync(Lobby lobby, string password = "", string playerName = "")
     {
         try
         {
-            JoinedLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobby.Id);
+            var options = new JoinLobbyByIdOptions { Player = GetPlayerObj(playerName) };
+            JoinedLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobby.Id, options);
             if (!ValidatePassword(password)) return false;
             _pollCoroutine = StartCoroutine(LobbyPollCoroutine());
             OnLobbyJoined?.Invoke(JoinedLobby);
@@ -200,13 +209,40 @@ public class LobbyManager : MonoBehaviour
             yield return new WaitForSeconds(POLL_INTERVAL);
             var task = LobbyService.Instance.GetLobbyAsync(JoinedLobby.Id);
             yield return new WaitUntil(() => task.IsCompleted);
-            if (task.IsFaulted) break;
+            if (task.IsFaulted)
+            {
+                if (task.Exception?.InnerException is LobbyServiceException lobbyEx)
+                {
+                    if (lobbyEx.Reason == LobbyExceptionReason.LobbyNotFound || lobbyEx.Reason == LobbyExceptionReason.Forbidden)
+                    {
+                        JoinedLobby = null;
+                        OnError?.Invoke("Oda silindi veya atildiniz.");
+                        OnLobbyLeft?.Invoke();
+                        break;
+                    }
+                }
+                continue;
+            }
             JoinedLobby = task.Result;
+            
+            bool isStillMember = false;
+            string myId = AuthenticationService.Instance.PlayerId;
+            foreach (var p in JoinedLobby.Players)
+                if (p.Id == myId) { isStillMember = true; break; }
+
+            if (!isStillMember)
+            {
+                JoinedLobby = null;
+                OnError?.Invoke("Odadan atildiniz.");
+                OnLobbyLeft?.Invoke();
+                break;
+            }
+
             OnLobbyUpdated?.Invoke(JoinedLobby);
             if (!IsHost)
             {
-                string relayCode   = JoinedLobby.Data?[KEY_RELAY_CODE]?.Value;
-                string gameStarted = JoinedLobby.Data?[KEY_GAME_STARTED]?.Value;
+                string relayCode   = JoinedLobby.Data != null && JoinedLobby.Data.ContainsKey(KEY_RELAY_CODE)   ? JoinedLobby.Data[KEY_RELAY_CODE].Value   : "";
+                string gameStarted = JoinedLobby.Data != null && JoinedLobby.Data.ContainsKey(KEY_GAME_STARTED) ? JoinedLobby.Data[KEY_GAME_STARTED].Value : "false";
                 if (gameStarted == "true" && !string.IsNullOrEmpty(relayCode))
                 {
                     StopPoll();
@@ -241,15 +277,34 @@ public class LobbyManager : MonoBehaviour
                 await LobbyService.Instance.DeleteLobbyAsync(JoinedLobby.Id);
             else
                 await LobbyService.Instance.RemovePlayerAsync(JoinedLobby.Id, playerId);
-            JoinedLobby = null;
-            OnLobbyLeft?.Invoke();
-            Debug.Log("[Lobby] Left lobby.");
         }
         catch (LobbyServiceException e)
         {
             Debug.LogError("[Lobby] Leave error: " + e.Message);
         }
+        finally
+        {
+            JoinedLobby = null;
+            OnLobbyLeft?.Invoke();
+            Debug.Log("[Lobby] Left lobby.");
+        }
     }
+
+    public async Task KickPlayerAsync(string playerId)
+    {
+        if (!IsHost || JoinedLobby == null) return;
+        try
+        {
+            await LobbyService.Instance.RemovePlayerAsync(JoinedLobby.Id, playerId);
+            Debug.Log("[Lobby] Kicked player: " + playerId);
+        }
+        catch (LobbyServiceException e)
+        {
+            Debug.LogError("[Lobby] Kick error: " + e.Message);
+            OnError?.Invoke("Oyuncu atilamadi.");
+        }
+    }
+
 
     private bool ValidatePassword(string enteredPassword)
     {
@@ -262,6 +317,18 @@ public class LobbyManager : MonoBehaviour
             return false;
         }
         return true;
+    }
+
+    private Player GetPlayerObj(string playerName)
+    {
+        if (string.IsNullOrEmpty(playerName)) playerName = "Oyuncu_" + UnityEngine.Random.Range(10, 99);
+        return new Player
+        {
+            Data = new Dictionary<string, PlayerDataObject>
+            {
+                { "PlayerName", new PlayerDataObject(PlayerDataObject.VisibilityOptions.Member, playerName) }
+            }
+        };
     }
 
     private void StopHeartbeat()

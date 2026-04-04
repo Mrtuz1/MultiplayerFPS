@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using TMPro;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
@@ -14,7 +14,6 @@ public class LobbyUI : MonoBehaviour
     [SerializeField] private GameObject lobbyListPanel;
     [SerializeField] private GameObject joinByCodePanel;
     [SerializeField] private GameObject lobbyRoomPanel;
-    [SerializeField] private GameObject passwordModalPanel;
     [SerializeField] private GameObject loadingPanel;
 
     [Header("Main Menu")]
@@ -52,16 +51,8 @@ public class LobbyUI : MonoBehaviour
     [SerializeField] private Button     startGameBtn;
     [SerializeField] private Button     leaveRoomBtn;
 
-    [Header("Password Modal")]
-    [SerializeField] private TMP_InputField modalPasswordInput;
-    [SerializeField] private Button         modalConfirmBtn;
-    [SerializeField] private Button         modalCancelBtn;
-    [SerializeField] private TMP_Text       modalLobbyNameText;
-
     [Header("Feedback")]
     [SerializeField] private TMP_Text errorText;
-
-    private Lobby _pendingJoinLobby;
 
     private void Awake()
     {
@@ -95,8 +86,6 @@ public class LobbyUI : MonoBehaviour
         startGameBtn.onClick.AddListener(OnClickStartGame);
         leaveRoomBtn.onClick.AddListener(OnClickLeaveRoom);
 
-        modalConfirmBtn.onClick.AddListener(OnModalPasswordConfirm);
-        modalCancelBtn.onClick.AddListener(() => passwordModalPanel.SetActive(false));
 
         maxPlayersDropdown.ClearOptions();
         maxPlayersDropdown.AddOptions(new List<string> { "2", "4", "6", "8" });
@@ -117,7 +106,7 @@ public class LobbyUI : MonoBehaviour
         bool isPrivate = privateToggle.isOn;
         string password = isPrivate ? createPasswordInput.text : "";
         ShowLoading(true);
-        await LobbyManager.Instance.CreateLobbyAsync(lobbyName, maxPlayers, isPrivate, password);
+        await LobbyManager.Instance.CreateLobbyAsync(lobbyName, maxPlayers, isPrivate, password, playerNameInput.text);
         ShowLoading(false);
     }
 
@@ -151,34 +140,13 @@ public class LobbyUI : MonoBehaviour
 
     private void OnLobbyItemClicked(Lobby lobby)
     {
-        string storedPass = lobby.Data?["Password"]?.Value ?? "";
-        if (!string.IsNullOrEmpty(storedPass))
-        {
-            _pendingJoinLobby = lobby;
-            if (modalLobbyNameText != null) modalLobbyNameText.text = lobby.Name;
-            if (modalPasswordInput != null) modalPasswordInput.text = "";
-            passwordModalPanel.SetActive(true);
-        }
-        else
-        {
-            JoinPublicLobby(lobby, "");
-        }
-    }
-
-    private async void OnModalPasswordConfirm()
-    {
-        passwordModalPanel.SetActive(false);
-        if (_pendingJoinLobby == null) return;
-        ShowLoading(true);
-        await LobbyManager.Instance.JoinPublicLobbyAsync(_pendingJoinLobby, modalPasswordInput.text);
-        ShowLoading(false);
-        _pendingJoinLobby = null;
+        JoinPublicLobby(lobby, "");
     }
 
     private async void JoinPublicLobby(Lobby lobby, string password)
     {
         ShowLoading(true);
-        await LobbyManager.Instance.JoinPublicLobbyAsync(lobby, password);
+        await LobbyManager.Instance.JoinPublicLobbyAsync(lobby, password, playerNameInput.text);
         ShowLoading(false);
     }
 
@@ -187,7 +155,7 @@ public class LobbyUI : MonoBehaviour
         string code = codeInput.text.Trim();
         if (string.IsNullOrEmpty(code)) { ShowError("Kod bos olamaz!"); return; }
         ShowLoading(true);
-        await LobbyManager.Instance.JoinLobbyByCodeAsync(code, codePasswordInput.text);
+        await LobbyManager.Instance.JoinLobbyByCodeAsync(code, codePasswordInput.text, playerNameInput.text);
         ShowLoading(false);
     }
 
@@ -213,8 +181,16 @@ public class LobbyUI : MonoBehaviour
         foreach (Player player in lobby.Players)
         {
             var item = Instantiate(playerListItemPrefab, playerListContent);
-            var txt  = item.GetComponentInChildren<TMP_Text>();
-            if (txt) txt.text = player.Id == lobby.HostId ? "Host" : "Oyuncu";
+            var playerItem = item.GetComponent<PlayerListItem>();
+            if (playerItem != null)
+            {
+                playerItem.Setup(player, lobby);
+            }
+            else
+            {
+                var txt = item.GetComponentInChildren<TMP_Text>();
+                if (txt) txt.text = player.Id == lobby.HostId ? "Host" : "Oyuncu";
+            }
         }
 
         bool amHost = LobbyManager.Instance.IsHost;

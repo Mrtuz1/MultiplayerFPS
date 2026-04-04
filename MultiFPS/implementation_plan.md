@@ -199,7 +199,7 @@ Lobi sistemini projeye aktarmak için şu adımları izleyin:
 
 Projenin tam çalışması için hala eksik olabilecek kısımlar:
 
-- [ ] LobbyUI panellerinin tasarımının Unity üzerinde oluşturulması.
-- [ ] LobbyListItem (Lobi Listesi satırı) ve PlayerListItem (Oda içi oyuncu satırı) Prefab'larının oluşturulması ve LobbyUI inspector alanlarına atılması.
-- [ ] NetworkPlayer Prefab'ına gerekli Network ve Player scriptlerinin ekli olduğunun teyit edilmesi.
-- [ ] Birden fazla kişiyle test için ParrelSync paketinin kurulması veya oyunun Client Build'ının alınıp test edilmesi. (Tek makinede tek IP ile Relay testleri bazen çakışabilir, ParrelSync önerilir).
+- [x] LobbyUI panellerinin tasarımının Unity üzerinde oluşturulması.
+- [x] LobbyListItem (Lobi Listesi satırı) ve PlayerListItem (Oda içi oyuncu satırı) Prefab'larının oluşturulması ve LobbyUI inspector alanlarına atılması.
+- [x] NetworkPlayer Prefab'ına gerekli Network ve Player scriptlerinin ekli olduğunun teyit edilmesi.
+- [x] Birden fazla kişiyle test için ParrelSync paketinin kurulması veya oyunun Client Build'ının alınıp test edilmesi. (Tek makinede tek IP ile Relay testleri bazen çakışabilir, ParrelSync önerilir).
